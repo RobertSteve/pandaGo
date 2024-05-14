@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  laravel-web:
+    container_name: laravel-web
+    build:
+      context: ./docker/nginx
+      args:
+        UID: $U_ID
+    ports:
+      - "3000:80"  # Cambiado a un puerto más típico para desarrollo
+    volumes:
+      - ./public:/var/www/html/public
+    networks:
+      - laravel-network
+    depends_on:
+      - laravel-app
+
+  laravel-app:
+    container_name: laravel-app
+    build:
+      context: ./docker/php
+      args:
+        UID: $U_ID
+    environment:
+      PHP_IDE_CONFIG: serverName=Docker
+      PHP_XDEBUG_ENABLED: 1
+      XDEBUG_CONFIG: remote_host=172.17.0.1 remote_port=9003 # Ajustar según la versión de Xdebug
+    volumes:
+      - ./:/var/www/html
+      - ./docker/php/xdebug-linux.ini:/usr/local/etc/php/conf.d/xdebug.ini # Linux users
+      - ~/.ssh/id_rsa:/home/appuser/.ssh/id_rsa
+    networks:
+      - laravel-network
+    depends_on:
+      - laravel-db
+
+  laravel-db:
+    container_name: laravel-db
+    image: mysql:8.0
+    ports:
+      - "40000:3306"
+    environment:
+      MYSQL_DATABASE: laravel_database
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: root
+    command: mysqld --sql_mode="STRICT_ALL_TABLES,NO_ENGINE_SUBSTITUTION"
+    volumes:
+      - laravel-database-data:/var/lib/mysql
+    networks:
+      - laravel-network
+
+volumes:
+  laravel-database-data:
+
+networks:
+  laravel-network:
+    driver: bridge
